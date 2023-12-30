@@ -1,0 +1,115 @@
+# PERSISTENT VOLUME CLAIM
+#apiVersion: v1
+#kind: PersistentVolumeClaim
+#metadata:
+  #name: index-pv-claim
+#spec:
+  #storageClassName: manual
+  #accessModes:
+    #- ReadWriteOnce
+  #resources:
+    #requests:
+      #storage: 20Gi
+---
+
+# INDEX APP
+# INDEX APP DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: index-deployment
+  labels:
+    app: index
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: index
+  template:
+    metadata:
+      name: index-pod
+      labels:
+        app: index
+    spec:
+      containers:
+      - name: index-container
+        image: docker.io/kenphung/index-app:sampleappv12
+        env:
+        - name: FORWARD_PYTHON
+          value: "http://forward-service:6000"
+        - name: MYSQL_SERVICE
+          value: "10.106.20.181"
+        - name: MYSQL_ROOT_PASSWORD
+          value: 'password'
+        #volumeMounts:
+        #- name: index-storage
+          #mountPath: /var/lib/mysql
+        ports:
+        - containerPort: 5000
+      #volumes:
+      #- name: index-storage
+        #persistentVolumeClaim:
+          #claimName: index-pv-claim
+---
+
+# INDEX APP
+# INDEX APP SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: index-service
+  labels:
+    app: index
+spec:
+  type: NodePort
+  ports:
+  - nodePort: 30003
+    port: 6000
+    targetPort: 5000
+  selector:
+    app: index
+---
+
+# FORWARD APP
+# FORWARD APP DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forward-deployment
+  labels:
+    app: forward
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: forward
+  template:
+    metadata:
+      name: forward-pod
+      labels:
+        app: forward
+    spec:
+      containers:
+      - name: forward-container
+        image: docker.io/kenphung/forward-app:sampleappv2
+        ports:
+        - containerPort: 5001
+---
+
+# FORWARD APP
+# FORWARD APP SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: forward-service
+  labels:
+    app: forward
+spec:
+  type: NodePort
+  ports:
+  - nodePort: 30004
+    port: 6000
+    targetPort: 5001
+  selector:
+    app: forward
+---
